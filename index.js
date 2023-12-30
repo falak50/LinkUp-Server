@@ -6,6 +6,7 @@ require('dotenv').config()
 
 //middleware 
 app.use(cors());
+app.use(express.json());
 
 
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
@@ -26,6 +27,20 @@ async function run() {
       await client.connect();
       
       const menuC=client.db("bistroDb").collection("menu");
+      const usersCollection=client.db("LinkUp").collection("users");
+      //user related apis
+      app.post('/users',async(req,res)=>{
+        console.log("in side the backend /users")
+        const user = req.body;
+        console.log(user);
+        const result = await usersCollection.insertOne(user);
+        res.send(result);
+  
+      });
+      
+
+
+       //user related apis
       app.get('/menu',async(req,res)=>{
         const result = "falak bai is a boosss"
         res.send(result);
