@@ -3,7 +3,6 @@ const app = express();
 const cors =  require('cors')
 const port = process.env.PORT || 5000;
 require('dotenv').config()
-
 //middleware 
 app.use(cors());
 app.use(express.json());
@@ -28,6 +27,7 @@ async function run() {
       
       //const menuC=client.db("bistroDb").collection("menu");
       const userCollection=client.db("LinkUp").collection("users");
+      const eduCollection=client.db("LinkUp").collection("education");
       //user related apis
       app.post('/users',async(req,res)=>{
         console.log("in side the backend /users")
@@ -41,7 +41,6 @@ async function run() {
         }
         const result = await userCollection.insertOne(user);
         res.send(result);
-  
       });
 
       
@@ -78,7 +77,6 @@ async function run() {
                   education: education,
                   country: country,
                   city: city,
-                  ok:'not ok 1'
           },
         };
   
@@ -86,42 +84,99 @@ async function run() {
         res.send(result);
         
       })
-      // app.post('/users/:email', async (req, res) => {
-      //   console.log('in email  post')
-      //   const emailToUpdate = req.params.email;
-      //   console.log("email check ",emailToUpdate)
-      //   const { first_name, last_name,additional_name,headline,education,country,city} = req.body;
-      //   console.log(req.body);
-  
-      //     userCollection.updateOne(
-      //       { email: emailToUpdate },
-      //       {
-      //         $set: {
-      //           first_name: first_name,
-      //           last_name: last_name,
-      //           additional_name: additional_name,
-      //           headline: headline,
-      //           education: education,
-      //           country: country,
-      //           city: city,
-      //         },
-      //       }
-      //     ).then(res=>{
-
-      //       console.log('res',res)
-
-      //     });
-      //     // console.log(result);
-  
-      //     // if (result.matchedCount === 0) {
-      //     //   return res.status(404).send({ message: 'User not found' });
-      //     // }
-      //     // console.log('res.send({ message: ')
-      //     res.send({ message: 'User updated successfully'});
-      //   } )
+      
       
       
        //user related apis
+
+      ///education api
+      app.get('/education', async (req, res) => {
+        // const query = { email: req.params.email };
+        // const user = await userCollection.findOne(query);
+        // const user =req.params.email;  
+        // res.send(user);
+        const result = await eduCollection.find().toArray();
+       res.send(result);
+      })
+      // app.get('/educatio/:uid', async (req, res) => {
+      //   // const education = await eduCollection.findMany(query);
+      //   const query = { uid: req.params.uid };
+      //   const education = await eduCollection.findMany(query);
+      //   res.send(education);
+      //   // const user =req.params.email;  
+      //   // res.send(user);
+      //   // const result = await eduCollection.find().toArray();
+      // //  res.send(req.params.uid);
+      // })
+
+      app.get('/education/:uid', async (req, res) => {
+      //  console.log('hit for collect all edu with uid')
+        const query = { uid:req.params.uid };
+        const education = await eduCollection.find(query).toArray();
+        console.log(education);
+        res.send(education);
+        // res.send(req.params.uid); .
+
+    });
+      
+      
+      app.post('/education',async(req,res)=>{
+       // console.log("in side the backend /users")
+        const  data = req.body;
+        console.log(data);
+        const result = await eduCollection.insertOne(data);
+        res.send(result);
+  
+      });
+      // app.patch('/education/:id',async(req,res)=>{
+      //   console.log('hit form udate education with insert id of edu')
+      //   const id=req.params.id;
+      //       //  const { first_name, last_name,additional_name,headline,education,country,city} = req.body;
+      //        console.log(req.body.school)
+      //   console.log('user admin id => ',id);
+      //   const filter = {_id:new ObjectId(id)};
+      //   const updateDoc = {
+      //     $set: {
+      //       school:req.body.school
+      //     },
+      //   };
+  
+      //   const result = await userCollection.updateOne(filter,updateDoc);
+      //   res.send(result);
+        
+      // })
+
+      app.patch('/education/:_id', async (req, res) => {
+        console.log('hit edit id ',req.params._id)
+        const educationId = req.params._id;
+        const updateData = req.body;
+    
+        try {
+            const result = await eduCollection.updateOne(
+                { _id: new ObjectId(educationId) },
+                { $set: updateData }
+            );
+    
+            if (result.modifiedCount > 0) {
+              console.log('update done')
+                res.status(200).json({ message: 'Education record updated successfully' });
+            } else {
+              console.log('update not done')
+                res.status(404).json({ message: 'Education record not found' });
+            }
+        } catch (error) {
+            console.error('Error updating education record', error);
+            res.status(500).json({ message: 'Internal server error' });
+        }
+    });
+
+      
+
+
+
+
+     //----------end-----------------///
+
       app.get('/menu',async(req,res)=>{
         const result = "falak bai is a boosss"
         res.send(result);
@@ -158,5 +213,4 @@ app.listen(port,()=>{
  * app.put('users/:id') // create and update if already have only update
  * app.delete('users/:id')
 */
-
 
