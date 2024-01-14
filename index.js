@@ -89,25 +89,13 @@ async function run() {
       
        //user related apis
 
-      ///education api
+      ///Education api----------------------------
+
       app.get('/education', async (req, res) => {
-        // const query = { email: req.params.email };
-        // const user = await userCollection.findOne(query);
-        // const user =req.params.email;  
-        // res.send(user);
         const result = await eduCollection.find().toArray();
        res.send(result);
       })
-      // app.get('/educatio/:uid', async (req, res) => {
-      //   // const education = await eduCollection.findMany(query);
-      //   const query = { uid: req.params.uid };
-      //   const education = await eduCollection.findMany(query);
-      //   res.send(education);
-      //   // const user =req.params.email;  
-      //   // res.send(user);
-      //   // const result = await eduCollection.find().toArray();
-      // //  res.send(req.params.uid);
-      // })
+      
 
       app.get('/education/:uid', async (req, res) => {
       //  console.log('hit for collect all edu with uid')
@@ -119,7 +107,7 @@ async function run() {
 
     });
       
-      
+      //INSERT OR ADD ONE EDUCATION DATA BY POST
       app.post('/education',async(req,res)=>{
        // console.log("in side the backend /users")
         const  data = req.body;
@@ -128,24 +116,8 @@ async function run() {
         res.send(result);
   
       });
-      // app.patch('/education/:id',async(req,res)=>{
-      //   console.log('hit form udate education with insert id of edu')
-      //   const id=req.params.id;
-      //       //  const { first_name, last_name,additional_name,headline,education,country,city} = req.body;
-      //        console.log(req.body.school)
-      //   console.log('user admin id => ',id);
-      //   const filter = {_id:new ObjectId(id)};
-      //   const updateDoc = {
-      //     $set: {
-      //       school:req.body.school
-      //     },
-      //   };
-  
-      //   const result = await userCollection.updateOne(filter,updateDoc);
-      //   res.send(result);
-        
-      // })
-
+    
+      // UPDATE OEN EDU DATA BY PATCH
       app.patch('/education/:_id', async (req, res) => {
         console.log('hit edit id ',req.params._id)
         const educationId = req.params._id;
@@ -169,6 +141,15 @@ async function run() {
             res.status(500).json({ message: 'Internal server error' });
         }
     });
+
+    // DELETE ONE EDUCATION INFO BY ID
+    app.delete('/education/:id',async(req,res)=>{
+      console.log('hit delete');
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await eduCollection.deleteOne(query);
+      res.send(result);
+    })
 
       
 
