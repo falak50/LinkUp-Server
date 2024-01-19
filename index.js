@@ -28,11 +28,12 @@ async function run() {
       //const menuC=client.db("bistroDb").collection("menu");
       const userCollection=client.db("LinkUp").collection("users");
       const eduCollection=client.db("LinkUp").collection("education");
+      const skillsCollection=client.db("LinkUp").collection("skills");
       //user related apis
       app.post('/users',async(req,res)=>{
         console.log("in side the backend /users")
         const user = req.body;
-        console.log(user);
+       // console.log(user);
         const query = {email:user.email};
         const existingUser = await userCollection.findOne(query);
         // console.log('existing user',existingUser);
@@ -62,11 +63,11 @@ async function run() {
         res.send(user);
       })
       app.patch('/users/:id',async(req,res)=>{
-        console.log('log in')
+      //  console.log('log in')
         const id=req.params.id;
              const { first_name, last_name,additional_name,headline,education,country,city} = req.body;
-             console.log(req.body)
-        console.log('user admin id => ',id);
+           //  console.log(req.body)
+     //   console.log('user admin id => ',id);
         const filter = {_id:new ObjectId(id)};
         const updateDoc = {
           $set: {
@@ -101,7 +102,7 @@ async function run() {
       //  console.log('hit for collect all edu with uid')
         const query = { uid:req.params.uid };
         const education = await eduCollection.find(query).toArray();
-        console.log(education);
+     //   console.log(education);
         res.send(education);
         // res.send(req.params.uid); .
 
@@ -111,7 +112,7 @@ async function run() {
       app.post('/education',async(req,res)=>{
        // console.log("in side the backend /users")
         const  data = req.body;
-        console.log(data);
+     //   console.log(data);
         const result = await eduCollection.insertOne(data);
         res.send(result);
   
@@ -119,7 +120,7 @@ async function run() {
     
       // UPDATE OEN EDU DATA BY PATCH
       app.patch('/education/:_id', async (req, res) => {
-        console.log('hit edit id ',req.params._id)
+       /// console.log('hit edit id ',req.params._id)
         const educationId = req.params._id;
         const updateData = req.body;
     
@@ -144,16 +145,70 @@ async function run() {
 
     // DELETE ONE EDUCATION INFO BY ID
     app.delete('/education/:id',async(req,res)=>{
-      console.log('hit delete');
+     /// console.log('hit delete');
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await eduCollection.deleteOne(query);
       res.send(result);
     })
 
-      
+      // SKILLS START ---------------------------//////
 
+        // INSERT OR ADD ONE skills DATA BY POST
+        app.post('/skills',async(req,res)=>{
+          console.log("in side the backend /skills ")
+          const  data = req.body;
+          console.log(data);
+          const result = await skillsCollection.insertOne(data);
+          res.send(result);
 
+        });
+      //SKILLS DATA COLLECT BY GET METHOD
+        app.get('/skills/:uid', async (req, res) => {
+          //  console.log('hit for collect all edu with uid')
+            const query = { uid:req.params.uid };
+            const skills = await skillsCollection.find(query).toArray();
+           console.log("RESULT ==> ",skills);
+            res.send(skills);
+            // res.send(req.params.uid); .
+    
+        });
+        // UPDATE one skill DATA BY PATCH
+      app.patch('/skills/:_id', async (req, res) => {
+         console.log('shills hit edit id ',req.params._id)
+       
+         const skillsId = req.params._id;
+         const updateData = req.body;
+         delete updateData._id;
+         console.log("data come => ",updateData)
+     
+         try {
+             const result = await skillsCollection.updateOne(
+                 { _id: new ObjectId(skillsId) },
+                 { $set: updateData }
+             );
+     
+             if (result.modifiedCount > 0) {
+               console.log('update done')
+                 res.status(200).json({ message: 'Education record updated successfully' });
+             } else {
+               console.log('update not done')
+                 res.status(404).json({ message: 'Education record not found' });
+             }
+         } catch (error) {
+             console.error('Error updating education record', error);
+             res.status(500).json({ message: 'Internal server error' });
+         }
+     });
+
+         // DELETE ONE skill INFO BY ID
+    app.delete('/skills/:id',async(req,res)=>{
+       console.log('hit delete of skills');
+       const id = req.params.id;
+       const query = { _id: new ObjectId(id) };
+       const result = await skillsCollection.deleteOne(query);
+       res.send(result);
+     })
 
 
      //----------end-----------------///
