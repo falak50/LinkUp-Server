@@ -3,10 +3,26 @@ const app = express();
 const cors =  require('cors')
 const port = process.env.PORT || 5000;
 require('dotenv').config()
+const multer = require('multer');
+const path = require('path')
+const { v4: uuidv4 } = require('uuid');
 //middleware 
 app.use(cors());
 app.use(express.json());
+app.use(express.static('uploads'))
+/// this image fun
 
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/images');
+  },
+  filename: (req, file, cb) => {
+    const uniqueFilename = `${uuidv4()}${path.extname(file.originalname)}`;
+    cb(null, uniqueFilename);
+  },
+});
+
+const upload = multer({ storage: storage });
 
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.rhxzu.mongodb.net/?retryWrites=true&w=majority`;
@@ -29,9 +45,10 @@ async function run() {
       const userCollection=client.db("LinkUp").collection("users");
       const eduCollection=client.db("LinkUp").collection("education");
       const skillsCollection=client.db("LinkUp").collection("skills");
+      const postsCollection=client.db("LinkUp").collection("posts");
       //user related apis
       app.post('/users',async(req,res)=>{
-        console.log("in side the backend /users")
+        // console.log("in side the backend /users")
         const user = req.body;
        // console.log(user);
         const query = {email:user.email};
@@ -156,9 +173,9 @@ async function run() {
 
         // INSERT OR ADD ONE skills DATA BY POST
         app.post('/skills',async(req,res)=>{
-          console.log("in side the backend /skills ")
+         // console.log("in side the backend /skills ")
           const  data = req.body;
-          console.log(data);
+         // console.log(data);
           const result = await skillsCollection.insertOne(data);
           res.send(result);
 
@@ -168,19 +185,19 @@ async function run() {
           //  console.log('hit for collect all edu with uid')
             const query = { uid:req.params.uid };
             const skills = await skillsCollection.find(query).toArray();
-           console.log("RESULT ==> ",skills);
+         //  console.log("RESULT ==> ",skills);
             res.send(skills);
             // res.send(req.params.uid); .
     
         });
         // UPDATE one skill DATA BY PATCH
       app.patch('/skills/:_id', async (req, res) => {
-         console.log('shills hit edit id ',req.params._id)
+       //  console.log('shills hit edit id ',req.params._id)
        
          const skillsId = req.params._id;
          const updateData = req.body;
          delete updateData._id;
-         console.log("data come => ",updateData)
+        // console.log("data come => ",updateData)
      
          try {
              const result = await skillsCollection.updateOne(
@@ -203,15 +220,136 @@ async function run() {
 
          // DELETE ONE skill INFO BY ID
     app.delete('/skills/:id',async(req,res)=>{
-       console.log('hit delete of skills');
+     //  console.log('hit delete of skills');
        const id = req.params.id;
        const query = { _id: new ObjectId(id) };
        const result = await skillsCollection.deleteOne(query);
        res.send(result);
      })
 
+ // SKILLS POST---------------------------//////
+
+        // INSERT OR ADD ONE POST DATA BY POSTmethod
+        app.post('/posts',upload.array('file'),async(req,res)=>{
+       //   console.log("in side the backend /posts ")
+          const files = req.files || [];
+    
+          // Process files if present
+          const imgUrls = files.map(file => {
+            console.log("pic link = ", file.filename);
+            return file.filename;
+          });
+         // console.log(imgUrls)
+          req.body.imgUrls = imgUrls;
+        //  console.log("all in one -> ",req.body);
+        
+          // Process other ata in the body
+        //  console.log("des : ", req.body.description);
+        //  console.log("des : ", req.body.uid);
+    
+          const  data = req.body;
+        //  console.log(" fianl data ",data);
+          const result = await postsCollection.insertOne(data);
+          res.send(result);
+
+        });
+
+        //SKILLS DATA COLLECT BY GET METHOD
+        app.get('/myposts/:uid', async (req, res) => {
+           console.log('hit get post  with uid')
+            const query = { uid:req.params.uid };
+            const myposts = await postsCollection.find(query).toArray();
+           console.log("RESULT ==> ",myposts);
+            res.send(myposts);
+            // res.send(req.params.uid); .
+    
+        });
+
+// --------------------------------------------------------------------
+    // Profile image change start////
+    app.post('/profileimg', upload.array('file'), (req, res) => {
+
+      console.log('come in upload ')
+      const files = req.files || [];
+    
+      // Process files if present
+      const imgUrls = files.map(file => {
+        console.log("pic link = ", file.filename);
+        return file.filename;
+      });
+     const ProfileImgURL = imgUrls[0];
+      req.body.imgUrls = imgUrls;
+
+
+      const id=req.body.uid;
+      console.log("uid",id)
+           //  console.log(req.body)
+     //   console.log('user admin id => ',id);
+        const filter = {_id:new ObjectId(id)};
+      
+        const updateDoc = {
+          $set: {
+            ProfileImgURL : ProfileImgURL,
+          },
+        };
+  
+        const result = userCollection.updateOne(filter,updateDoc);
+        res.send(result);
+
+      res.json({ message: 'profile  uploaded successfully' });
+    });
+
+    // Profile image change start ////
+
+    // app.post('/profileimg', upload.array('file'), (req, res) => {
+
+    //   console.log('come in upload ')
+    //   const files = req.files || [];
+    
+    //   // Process files if present
+    //   const imgUrls = files.map(file => {
+    //     console.log("pic link = ", file.filename);
+    //     return file.filename;
+    //   });
+    //  const ProfileImgURL = imgUrls[0];
+    
+    //   req.body.imgUrls = imgUrls;
+  
+    //   res.json({ message: 'File uploaded successfully' });
+    // });
+
+
+
+
+
+     // Profile image change end ////
+
+    // image test //---------------////
+
+
+    app.post('/upload', upload.array('file'), (req, res) => {
+
+      console.log('come in upload ')
+      const files = req.files || [];
+    
+      // Process files if present
+      const imgUrls = files.map(file => {
+        console.log("pic link = ", file.filename);
+        return file.filename;
+      });
+     const ProfileImgURL = imgUrls[0];
+    
+      req.body.imgUrls = imgUrls;
+  
+      res.json({ message: 'File uploaded successfully' });
+    });
+
+
+
 
      //----------end-----------------///
+
+      
 
       app.get('/menu',async(req,res)=>{
         const result = "falak bai is a boosss"
