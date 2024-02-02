@@ -6,6 +6,7 @@ require('dotenv').config()
 const multer = require('multer');
 const path = require('path')
 const { v4: uuidv4 } = require('uuid');
+const fs = require('fs'); 
 //middleware 
 app.use(cors());
 app.use(express.json());
@@ -267,9 +268,8 @@ async function run() {
 
 // --------------------------------------------------------------------
     // Profile image change start////
-    app.post('/profileimg', upload.array('file'), (req, res) => {
-
-      console.log('come in upload ')
+    app.post('/profileimg', upload.array('file'), async(req, res) => {
+      console.log('come in profileimg');
       const files = req.files || [];
     
       // Process files if present
@@ -277,27 +277,64 @@ async function run() {
         console.log("pic link = ", file.filename);
         return file.filename;
       });
-     const ProfileImgURL = imgUrls[0];
+      const ProfileImgURL = imgUrls[0];
       req.body.imgUrls = imgUrls;
+    
+      const id = req.body.uid;
+      console.log("uid", id);
+      const filter = { _id: new ObjectId(id) };
+    
+      const updateDoc = {
+        $set: {
+          ProfileImgURL: ProfileImgURL,
+        },
+      };
+    
+      const result = await userCollection.updateOne(filter, updateDoc)
+      //  => {
+      //   if (err) {
+      //     console.error('Error updating profile image:', err);
+      //     return res.status(500).json({ message: 'Internal server error' });
+      //   }
+    
+      //   console.log('Update result:', result);
+    
+       
+      // });
 
-
-      const id=req.body.uid;
-      console.log("uid",id)
-           //  console.log(req.body)
-     //   console.log('user admin id => ',id);
-        const filter = {_id:new ObjectId(id)};
-      
-        const updateDoc = {
-          $set: {
-            ProfileImgURL : ProfileImgURL,
-          },
-        };
-  
-        const result = userCollection.updateOne(filter,updateDoc);
-        res.send(result);
-
-      res.json({ message: 'profile  uploaded successfully' });
+      return res.json(result);
     });
+    // DELETE user profile image by UID
+app.delete('/profilePicdelete/:uid', async (req, res) => {
+  const uid = req.params.uid;
+  console.log(uid);
+  const filter = { _id: new ObjectId(uid) };
+
+  const existingUser = await userCollection.findOne(filter);
+
+  if (!existingUser) {
+    return res.status(404).json({ message: 'User not found' });
+  }
+  if (!existingUser.ProfileImgURL) {
+    return res.status(404).json({ message: 'NOT ProfileImgURLd' });
+  }
+  const currentProfileImgURL = existingUser.ProfileImgURL;
+
+  // Delete the current profile image file from the server (assuming it's stored in 'uploads/images')
+  const imagePath = path.join(__dirname, 'uploads/images', currentProfileImgURL);
+  fs.unlinkSync(imagePath); // Be cautious with this operation in a production environment
+
+  // Update the user document to remove the profile image URL
+  const updateDoc = {
+    $unset: {
+      ProfileImgURL: 1,
+    },
+  };
+
+  const result = await userCollection.updateOne(filter, updateDoc);
+
+  res.status(200).json({ message: 'Profile image deleted successfully', result });
+});
 
     // Profile image change start ////
 
