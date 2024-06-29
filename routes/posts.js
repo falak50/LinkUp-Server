@@ -6,8 +6,8 @@ const upload = require('../multerConfig');
 
 const postsCollection = client.db("LinkUp").collection("posts");
 const userCollection = client.db("LinkUp").collection("users");
-const path = require('path')
-const fs = require('fs'); 
+const path = require('path') 
+const fs = require('fs').promises; 
 router.post('/', upload.array('file'), async (req, res) => {
     const files = req.files || [];
     const imgUrls = files.map(file => file.filename);

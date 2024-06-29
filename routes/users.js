@@ -155,7 +155,7 @@ router.delete('/profilePicdelete/:uid', async (req, res) => {
 
       // Correct path to the image file
       const imagePath = path.join(__dirname, '../uploads/images', currentProfileImgURL);
-
+      console.log('imagePath',imagePath)
       // Check if the file exists and delete it
       if (fs.existsSync(imagePath)) {
           fs.unlinkSync(imagePath); // Be cautious with this operation in a production environment
