@@ -4,6 +4,7 @@ const { ObjectId } = require('mongodb');
 const client = require('../db');
 
 const skillsCollection = client.db("LinkUp").collection("skills");
+const userCollection = client.db("LinkUp").collection("users");
 
 router.get('/',(req,res)=>{
     res.send('skills route connected')
@@ -14,10 +15,27 @@ router.post('/', async (req, res) => {
     res.send(result);
 });
 
-router.get('/:uid', async (req, res) => {
-    const query = { uid: req.params.uid };
-    const skills = await skillsCollection.find(query).toArray();
-    res.send(skills);
+// router.get('/:uid', async (req, res) => {
+//     const query = { uid: req.params.uid };
+//     const skills = await skillsCollection.find(query).toArray();
+//     res.send(skills);
+// });
+router.get('/:email', async (req, res) => {
+    try {
+        const queryUser = { email: req.params.email };
+        const user = await userCollection.findOne(queryUser);
+        if (!user) {
+            return res.status(404).send({ message: 'User not found' });
+        }
+
+        const query = { uid: user._id.toString() };
+       // const query = { uid: '6598d037b67bd57e6b290949' 
+        const skills = await skillsCollection.find(query).toArray();
+        res.send(skills);
+
+    } catch (error) {
+        res.status(500).send({ message: 'An error occurred', error: error.message });
+    }
 });
 
 router.patch('/:_id', async (req, res) => {

@@ -288,6 +288,12 @@ async function run() {
 
 // --------------------------------------------------------------------
     // Profile image change start////
+    // app.post('/profileimg',  async(req, res) => {
+    //   console.log('come in profileimg');
+     
+    //   return res.json('hello');
+    // });
+
     // app.post('/profileimg', upload.array('file'), async(req, res) => {
     //   console.log('come in profileimg');
     //   const files = req.files || [];
@@ -324,37 +330,37 @@ async function run() {
 
     //   return res.json(result);
     // });
-    // // DELETE user profile image by UID
-app.delete('/profilePicdelete/:uid', async (req, res) => {
-  const uid = req.params.uid;
-  console.log(uid);
-  const filter = { _id: new ObjectId(uid) };
+    // DELETE user profile image by UID
+// app.delete('/profilePicdelete/:uid', async (req, res) => {
+//   const uid = req.params.uid;
+//   console.log(uid);
+//   const filter = { _id: new ObjectId(uid) };
 
-  const existingUser = await userCollection.findOne(filter);
+//   const existingUser = await userCollection.findOne(filter);
 
-  if (!existingUser) {
-    return res.status(404).json({ message: 'User not found' });
-  }
-  if (!existingUser.ProfileImgURL) {
-    return res.status(404).json({ message: 'NOT ProfileImgURLd' });
-  }
-  const currentProfileImgURL = existingUser.ProfileImgURL;
+//   if (!existingUser) {
+//     return res.status(404).json({ message: 'User not found' });
+//   }
+//   if (!existingUser.ProfileImgURL) {
+//     return res.status(404).json({ message: 'NOT ProfileImgURLd' });
+//   }
+//   const currentProfileImgURL = existingUser.ProfileImgURL;
+//   console.log('currentProfileImgURL ',currentProfileImgURL)
+//   // Delete the current profile image file from the server (assuming it's stored in 'uploads/images')
+//   const imagePath = path.join(__dirname, 'uploads/images', currentProfileImgURL);
+//   fs.unlinkSync(imagePath); // Be cautious with this operation in a production environment
 
-  // Delete the current profile image file from the server (assuming it's stored in 'uploads/images')
-  const imagePath = path.join(__dirname, 'uploads/images', currentProfileImgURL);
-  fs.unlinkSync(imagePath); // Be cautious with this operation in a production environment
+//   // Update the user document to remove the profile image URL
+//   const updateDoc = {
+//     $unset: {
+//       ProfileImgURL: 1,
+//     },
+//   };
 
-  // Update the user document to remove the profile image URL
-  const updateDoc = {
-    $unset: {
-      ProfileImgURL: 1,
-    },
-  };
+//   const result = await userCollection.updateOne(filter, updateDoc);
 
-  const result = await userCollection.updateOne(filter, updateDoc);
-
-  res.status(200).json({ message: 'Profile image deleted successfully', result });
-});
+//   res.status(200).json({ message: 'Profile image deleted successfully', result });
+// });
 
     // Profile image change start ////
 

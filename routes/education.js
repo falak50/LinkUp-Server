@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { ObjectId } = require('mongodb');
 const client = require('../db');
-
+const userCollection = client.db("LinkUp").collection("users");
 const eduCollection = client.db("LinkUp").collection("education");
 
 router.get('/', async (req, res) => {
@@ -10,10 +10,40 @@ router.get('/', async (req, res) => {
     res.send(result);
 });
 
-router.get('/:uid', async (req, res) => {
-    const query = { uid: req.params.uid };
-    const education = await eduCollection.find(query).toArray();
-    res.send(education);
+// router.get('/:uid', async (req, res) => {
+//     // const query = { uid: req.params.uid };
+//     const query = { uid: '6598d037b67bd57e6b290949' }
+//     console.log(query);
+//     const education = await eduCollection.find(query).toArray();
+//     res.send(education);
+// });
+// router.get('/:email', async (req, res) => {
+//     const queryUser = { email: req.params.email };
+//     const user = await userCollection.findOne(queryUser);
+//     // return res.send(user._id);
+//     const query = { uid: user._id};
+//     // return res.send(query);
+//     const education = await eduCollection.find(query).toArray();
+//     res.send(education);
+// });
+router.get('/:email', async (req, res) => {
+    // return res.send('dd')
+    try {
+        const queryUser = { email: req.params.email };
+        const user = await userCollection.findOne(queryUser);
+        if (!user) {
+            return res.status(404).send({ message: 'User not found' });
+        }
+
+        const query = { uid: user._id.toString() };
+       // const query = { uid: '6598d037b67bd57e6b290949' 
+        const education = await eduCollection.find(query).toArray();
+        
+
+        res.send(education);
+    } catch (error) {
+        res.status(500).send({ message: 'An error occurred', error: error.message });
+    }
 });
 
 router.post('/', async (req, res) => {
@@ -49,3 +79,4 @@ router.delete('/:id', async (req, res) => {
 });
 
 module.exports = router;
+
