@@ -18,6 +18,16 @@ router.post('/', upload.array('file'), async (req, res) => {
     console.log(result)
     res.send(result);
 });
+router.post('/:uid', upload.array('file'), async (req, res) => {
+    const files = req.files || [];
+    const imgUrls = files.map(file => file.filename);
+    req.body.imgUrls = imgUrls;
+    const data = req.body;
+    console.log(data);
+    const result = await postsCollection.insertOne(data);
+    console.log(result)
+    res.send(result);
+});
 router.post('/delete/:uid', async (req, res) => {
     try {
         const uid = req.params.uid;
@@ -68,21 +78,8 @@ router.post('/delete/:uid', async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 });
-// router.post('/delete/:uid', async (req, res) => {
-//     const uid = req.params.uid;
-//     console.log(uid);
-//     const filter = { _id: new ObjectId(uid) };
-//     const existingPost = await postsCollection.findOne(filter);
-//     return res.json(existingPost)
 
-// });
 
-// router.get('/:uid', async (req, res) => {
-//     const query = { uid: req.params.uid };
-//     console.log(query)
-//     const myposts = await postsCollection.find(query).toArray();
-//     res.send(myposts);
-// });
 router.get('/:email', async (req, res) => {
     try {
         const queryUser = { email: req.params.email };
