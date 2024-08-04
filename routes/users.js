@@ -219,7 +219,6 @@ router.delete('/profilePicdelete/:uid', async (req, res) => {
 
 //   });  
 
-
 router.post('/friendRequest', async (req, res) => {
   console.log('add friend request');
   try {
@@ -232,10 +231,18 @@ router.post('/friendRequest', async (req, res) => {
       return res.status(404).send({ message: 'User not found' });
     }
 
+    // Ensure owner.friends and friend.friends are arrays
+    owner.friends = owner.friends || [];
+    friend.friends = friend.friends || [];
+
     // Check if they are already friends
     if (owner.friends.some(friendId => friendId.equals(friend._id))) {
       return res.status(400).send({ message: 'Already friends' });
     }
+
+    // Ensure owner.send_request and friend.get_request are arrays
+    owner.send_request = owner.send_request || [];
+    friend.get_request = friend.get_request || [];
 
     // Update owner's send_request array
     const updateOwnerResult = await userCollection.updateOne(
@@ -275,7 +282,7 @@ router.post('/cancelFriendRequest', async (req, res) => {
     const updateOperations = [];
 
     // Check if the request exists from owner to friend
-    if (owner.send_request.some(requestId => requestId.equals(friend._id))) {
+    if (owner.send_request && owner.send_request.some(requestId => requestId.equals(friend._id))) {
       updateOperations.push(
         userCollection.updateOne(
           { email: ownerEmail },
@@ -289,7 +296,7 @@ router.post('/cancelFriendRequest', async (req, res) => {
     }
 
     // Check if the request exists from friend to owner
-    if (friend.send_request.some(requestId => requestId.equals(owner._id))) {
+    if (friend.send_request && friend.send_request.some(requestId => requestId.equals(owner._id))) {
       updateOperations.push(
         userCollection.updateOne(
           { email: sentFriendRequestEmail },
@@ -315,71 +322,103 @@ router.post('/cancelFriendRequest', async (req, res) => {
     res.status(500).send({ message: 'An error occurred', error: error.message });
   }
 });
+ 
+// router.post('/cancelFriendRequest', async (req, res) => {
+//   try {
+//     const { sentFriendRequestEmail, ownerEmail } = req.body;
 
-  // router.post('/cancelFriendRequest', async (req, res) => {
-  //   try {
-  //     const { sentFriendRequestEmail, ownerEmail } = req.body;
-  
-  //     const owner = await userCollection.findOne({ email: ownerEmail });
-  //     const friend = await userCollection.findOne({ email: sentFriendRequestEmail });
-  
-  //     if (!owner || !friend) {
-  //       return res.status(404).send({ message: 'User not found' });
-  //     }
-  
-  //     // Remove friend's ID from owner's send_request array
-  //     const updateOwnerResult = await userCollection.updateOne(
-  //       { email: ownerEmail },
-  //       { $pull: { send_request: friend._id } }
-  //     );
-  
-  //     // Remove owner's ID from friend's get_request array
-  //     const updateFriendResult = await userCollection.updateOne(
-  //       { email: sentFriendRequestEmail },
-  //       { $pull: { get_request: owner._id } }
-  //     );
-  
-  //     if (updateOwnerResult.modifiedCount === 1 && updateFriendResult.modifiedCount === 1) {
-  //       res.send({ message: 'Friend request canceled successfully', owner, friend });
-  //     } else {
-  //       res.status(500).send({ message: 'Failed to cancel friend request' });
-  //     }
-  //   } catch (error) {
-  //     res.status(500).send({ message: 'An error occurred', error: error.message });
-  //   }
-  // });
-  // todo : may be need to swam
-  router.post('/acceptFriendRequest', async (req, res) => {
-    try {
-      const { sentFriendRequestEmail, ownerEmail } = req.body;
-  
-      const owner = await userCollection.findOne({ email: ownerEmail });
-      const friend = await userCollection.findOne({ email: sentFriendRequestEmail });
-  
-      if (!owner || !friend) {
-        return res.status(404).send({ message: 'User not found' });
-      }
-  
-      // Add each user's ID to the other's friends array
-      const updateOwnerResult = await userCollection.updateOne(
-        { email: ownerEmail },
-        { $addToSet: { friends: friend._id }, $pull: {  get_request: friend._id } }
-      );
-  
-      const updateFriendResult = await userCollection.updateOne(
-        { email: sentFriendRequestEmail },
-        { $addToSet: { friends: owner._id }, $pull: { send_request: owner._id } }
-      );
-  
-      if (updateOwnerResult.modifiedCount === 1 && updateFriendResult.modifiedCount === 1) {
-        res.send({ message: 'Friend request accepted successfully', owner, friend });
-      } else {
-        res.status(500).send({ message: 'Failed to accept friend request' });
-      }
-    } catch (error) {
-      res.status(500).send({ message: 'An error occurred', error: error.message });
+//     const [owner, friend] = await Promise.all([
+//       userCollection.findOne({ email: ownerEmail }),
+//       userCollection.findOne({ email: sentFriendRequestEmail })
+//     ]);
+
+//     if (!owner || !friend) {
+//       return res.status(404).send({ message: 'User not found' });
+//     }
+
+//     const updateOperations = [];
+
+//     // Check if the request exists from owner to friend
+//     if (owner.send_request.some(requestId => requestId.equals(friend._id))) {
+//       updateOperations.push(
+//         userCollection.updateOne(
+//           { email: ownerEmail },
+//           { $pull: { send_request: friend._id } }
+//         ),
+//         userCollection.updateOne(
+//           { email: sentFriendRequestEmail },
+//           { $pull: { get_request: owner._id } }
+//         )
+//       );
+//     }
+
+//     // Check if the request exists from friend to owner
+//     if (friend.send_request.some(requestId => requestId.equals(owner._id))) {
+//       updateOperations.push(
+//         userCollection.updateOne(
+//           { email: sentFriendRequestEmail },
+//           { $pull: { send_request: owner._id } }
+//         ),
+//         userCollection.updateOne(
+//           { email: ownerEmail },
+//           { $pull: { get_request: friend._id } }
+//         )
+//       );
+//     }
+
+//     const results = await Promise.all(updateOperations);
+
+//     const successfulUpdates = results.filter(result => result.modifiedCount > 0);
+
+//     if (successfulUpdates.length > 0) {
+//       res.send({ message: 'Friend request canceled successfully', owner, friend });
+//     } else {
+//       res.status(500).send({ message: 'Failed to cancel friend request' });
+//     }
+//   } catch (error) {
+//     res.status(500).send({ message: 'An error occurred', error: error.message });
+//   }
+// });
+
+
+ 
+router.post('/acceptFriendRequest', async (req, res) => {
+  try {
+    const { sentFriendRequestEmail, ownerEmail } = req.body;
+
+    const owner = await userCollection.findOne({ email: ownerEmail });
+    const friend = await userCollection.findOne({ email: sentFriendRequestEmail });
+
+    if (!owner || !friend) {
+      return res.status(404).send({ message: 'User not found' });
     }
-  });
+
+    // Add each user's ID to the other's friends array and remove from get_request and send_request
+    const updateOwnerResult = await userCollection.updateOne(
+      { email: ownerEmail },
+      {
+        $addToSet: { friends: friend._id },
+        $pull: { get_request: friend._id, send_request: sentFriendRequestEmail }
+      }
+    );
+
+    const updateFriendResult = await userCollection.updateOne(
+      { email: sentFriendRequestEmail },
+      {
+        $addToSet: { friends: owner._id },
+        $pull: { send_request: owner._id, get_request: ownerEmail }
+      }
+    );
+
+    if (updateOwnerResult.modifiedCount === 1 && updateFriendResult.modifiedCount === 1) {
+      res.send({ message: 'Friend request accepted successfully', owner, friend });
+    } else {
+      res.status(500).send({ message: 'Failed to accept friend request' });
+    }
+  } catch (error) {
+    res.status(500).send({ message: 'An error occurred', error: error.message });
+  }
+});
   
   router.post('/removefriend', async (req, res) => {
     try {
@@ -414,6 +453,81 @@ router.post('/cancelFriendRequest', async (req, res) => {
       res.status(500).send({ message: 'An error occurred', error: error.message });
     }
   });
+
+  // router.post('/active-button-code', async (req, res) => {
+  //   try {
+  //     const { sentFriendRequestEmail, ownerEmail } = req.body;
+  //     const friendEmail = sentFriendRequestEmail;
+  
+  //     const owner = await userCollection.findOne({ email: ownerEmail });
+  //     const otherUser = await userCollection.findOne({ email: friendEmail });
+  
+  //     if (!owner || !otherUser) {
+  //       return res.status(404).send({ message: 'User not found' });
+  //     }
+  
+  //     let relation;
+  
+  //     const isFriend = owner.friends.some(friendId => friendId.equals(otherUser._id)) && 
+  //                      otherUser.friends.some(friendId => friendId.equals(owner._id));
+  //     const hasSentRequest = owner.send_request.some(requestId => requestId.equals(otherUser._id)) &&
+  //                            otherUser.get_request.some(requestId => requestId.equals(owner._id));
+  //     const hasReceivedRequest = owner.get_request.some(requestId => requestId.equals(otherUser._id)) &&
+  //                                otherUser.send_request.some(requestId => requestId.equals(owner._id));
+  
+  //     if (isFriend) {
+  //       relation = "unfriend";
+  //     } else if (hasSentRequest) {
+  //       relation = "cancel_request";
+  //     } else if (hasReceivedRequest) {
+  //       relation = "accept_&_cancel_request";
+  //     } else {
+  //       relation = "add_friend";
+  //     }
+  
+  //     res.send({ message: relation });
+  //   } catch (error) {
+  //     res.status(500).send({ message: 'An error occurred', error: error.message });
+  //   }
+  // });
+  
+  router.post('/active-button-code', async (req, res) => {
+    try {
+      const { sentFriendRequestEmail, ownerEmail } = req.body;
+      const friendEmail = sentFriendRequestEmail;
+  
+      const owner = await userCollection.findOne({ email: ownerEmail });
+      const otherUser = await userCollection.findOne({ email: friendEmail });
+  
+      if (!owner || !otherUser) {
+        return res.status(404).send({ message: 'User not found' });
+      }
+  
+      let relation;
+  
+      const isFriend = owner.friends?.some(friendId => friendId.equals(otherUser._id)) && 
+                       otherUser.friends?.some(friendId => friendId.equals(owner._id));
+      const hasSentRequest = owner.send_request?.some(requestId => requestId.equals(otherUser._id)) &&
+                             otherUser.get_request?.some(requestId => requestId.equals(owner._id));
+      const hasReceivedRequest = owner.get_request?.some(requestId => requestId.equals(otherUser._id)) &&
+                                 otherUser.send_request?.some(requestId => requestId.equals(owner._id));
+  
+      if (isFriend) {
+        relation = "unfriend";
+      } else if (hasSentRequest) {
+        relation = "cancel_request";
+      } else if (hasReceivedRequest) {
+        relation = "accept_&_cancel_request";
+      } else {
+        relation = "add_friend";
+      }
+  
+      res.send({ message: relation });
+    } catch (error) {
+      res.status(500).send({ message: 'An error occurred', error: error.message });
+    }
+  });
+  
   
 
 module.exports = router;
