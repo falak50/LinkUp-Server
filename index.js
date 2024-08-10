@@ -21,10 +21,9 @@ async function saveMessage(senderId, receiverId, message) {
   console.log('save massage')
   try {
     const db = client.db('LinkUp');
-    const messagesCollection = db.collection('chat');
+    const messagesCollection = db.collection('messages');
     const chat_id = [senderId, receiverId].sort().join('_');
     const result = await messagesCollection.insertOne({
-      chat_id:chat_id,
       senderId:senderId,
       receiverId:receiverId,
       message,
@@ -47,12 +46,11 @@ io.on("connection", (socket) => {
 
   socket.on("send_message", async ({ otherUserId, message,senderId }) => {
     const roomId = otherUserId;
-    await saveMessage(senderId, otherUserId, message);
     socket.to(roomId).emit("receive_message", { message, senderId });
     console.log(`Message sent from ${senderId} to ${otherUserId} in room ${roomId}`);
 
     // Save message to MongoDB
-    // await saveMessage(senderId, otherUserId, message);
+    await saveMessage(senderId, otherUserId, message);
   });
 });
 

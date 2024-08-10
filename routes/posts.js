@@ -23,10 +23,54 @@ router.post('/:uid', upload.array('file'), async (req, res) => {
     const imgUrls = files.map(file => file.filename);
     req.body.imgUrls = imgUrls;
     const data = req.body;
+    const uid = req.params.uid;
+
     console.log(data);
-    const result = await postsCollection.insertOne(data);
-    console.log(result)
-    res.send(result);
+
+    if (!ObjectId.isValid(uid)) {
+        return res.status(400).json({ message: 'Invalid post ID' });
+    }
+
+    const filter = { _id: new ObjectId(uid) };
+    const existingPost = await postsCollection.findOne(filter);
+
+    if (!existingPost) {
+        return res.status(404).json({ message: 'Post not found' });
+    }
+
+    // Delete old images
+    if (existingPost.imgUrls && existingPost.imgUrls.length > 0) {
+        for (const imgUrl of existingPost.imgUrls) {
+            const imagePath = path.join(__dirname, '../uploads/images', imgUrl);
+
+            // Validate the image URL to prevent directory traversal attacks
+            if (path.isAbsolute(imgUrl) || imgUrl.includes('..')) {
+                return res.status(400).json({ message: 'Invalid image path' });
+            }
+
+            // Check if the file exists and delete it
+            try {
+                await fs.access(imagePath); // Check if file exists
+                await fs.unlink(imagePath); // Delete the file
+                console.log('File deleted:', imagePath);
+            } catch (fileError) {
+                console.warn('File not found or cannot be accessed:', imagePath);
+            }
+        }
+    }
+
+    // Update the post document
+    const update = {
+        $set: data
+    };
+
+    const result = await postsCollection.updateOne(filter, update);
+
+    if (result.modifiedCount === 1) {
+        res.status(200).json({ message: 'Post updated successfully' });
+    } else {
+        res.status(500).json({ message: 'Failed to update post' });
+    }
 });
 router.post('/delete/:uid', async (req, res) => {
     try {
