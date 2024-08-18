@@ -182,18 +182,148 @@ router.post('/delete/:uid', async (req, res) => {
 });
 
 
+// router.get('/:email', async (req, res) => {
+//     try {
+//         const queryUser = { email: req.params.email };
+//         const user = await userCollection.findOne(queryUser);
+//         if (!user) {
+//             return res.status(404).send({ message: 'User not found' });
+//         }
+
+//         const query = { uid: user._id.toString() };
+//        // const query = { uid: '6598d037b67bd57e6b290949' 
+//         const posts = await postsCollection.find(query).toArray();
+//         res.send(posts);
+
+//     } catch (error) {
+//         res.status(500).send({ message: 'An error occurred', error: error.message });
+//     }
+// });
+// Route to fetch paginated posts by user's email
 router.get('/:email', async (req, res) => {
     try {
-        const queryUser = { email: req.params.email };
-        const user = await userCollection.findOne(queryUser);
-        if (!user) {
-            return res.status(404).send({ message: 'User not found' });
-        }
+        const page = parseInt(req.query.page) || 1; // Default to page 1
+        const limit = parseInt(req.query.limit) || 500; // Default to 5 items per page
+        const skip = (page - 1) * limit; // Calculate the number of items to skip
+        const { email } = req.params; 
+        const posts = await postsCollection.aggregate([
+            {
+                $match: {
+                    $and: [
+                        { uid: { $ne: null } }, // Ensure uid is not null
+                        { $expr: { $eq: [{ $strLenCP: "$uid" }, 24] } } // Check if `uid` has a valid length for ObjectId
+                    ]
+                }
+            },
+            {
+                $addFields: {
+                    uidObjectId: { $toObjectId: "$uid" } // Convert `uid` to ObjectId
+                }
+            },
+            {
+                $lookup: {
+                    from: 'users', // Join with the `users` collection
+                    localField: 'uidObjectId', // Field from the posts collection (ObjectId)
+                    foreignField: '_id', // Field from the users collection (ObjectId)
+                    as: 'userInfo' // Resulting field in the posts collection
+                }
+            },
+            {
+                $unwind: {
+                    path: '$userInfo',
+                    preserveNullAndEmptyArrays: true // Include posts even if no matching user is found
+                }
+            },
+            {
+                $lookup: {
+                    from: 'comments', // Join with the `comments` collection
+                    let: { postId: '$_id' }, // Define variable for the post's _id
+                    pipeline: [
+                        {
+                            $match: {
+                                $and: [
+                                    { post_id: { $ne: null } }, // Ensure post_id is not null
+                                    { uid: { $ne: null } }, // Ensure uid is not null
+                                    { $expr: { $eq: [{ $strLenCP: "$post_id" }, 24] } }, // Check if `post_id` has a valid length for ObjectId
+                                    { $expr: { $eq: [{ $strLenCP: "$uid" }, 24] } } // Check if `uid` has a valid length for ObjectId
+                                ]
+                            }
+                        },
+                        {
+                            $addFields: {
+                                post_idObjectId: { $toObjectId: "$post_id" }, // Convert post_id to ObjectId
+                                uidObjectId: { $toObjectId: "$uid" } // Convert uid to ObjectId
+                            }
+                        },
+                        {
+                            $match: {
+                                $expr: {
+                                    $eq: ['$post_idObjectId', { $toObjectId: '$$postId' }] // Match post_id with post's _id
+                                }
+                            }
+                        },
+                        {
+                            $lookup: {
+                                from: 'users', // Join with the `users` collection for comments
+                                localField: 'uidObjectId', // Field from the comments collection
+                                foreignField: '_id', // Field from the users collection
+                                as: 'commentUserInfo' // Resulting field in the comments array
+                            }
+                        },
+                        {
+                            $unwind: {
+                                path: '$commentUserInfo',
+                                preserveNullAndEmptyArrays: true // Include comments even if no matching user is found
+                            }
+                        },
+                        {
+                            $sort: { createdAt: -1 } // Sort comments by creation date in descending order (reverse order)
+                        }
+                    ],
+                    as: 'comments' // Resulting field in the posts collection
+                }
+            },
+            {
+                $project: {
+                    description: 1,
+                    imgUrls: 1,
+                    uid: 1,
+                    createdAt: 1,
+                    likes: 1,
+                    'userInfo.first_name': 1,
+                    'userInfo.last_name': 1,
+                    'userInfo.email': 1,
+                    'userInfo.ProfileImgURL': 1,
+                    comments: {
+                        _id: 1,
+                        uid: 1,
+                        text: 1,
+                        post_id: 1,
+                        parent_comment_id: 1,
+                        createdAt: 1,
+                        likes: 1,
+                        'commentUserInfo.first_name': 1,
+                        'commentUserInfo.last_name': 1,
+                        'commentUserInfo.ProfileImgURL': 1,
+                        'commentUserInfo.email': 1
+                    } // Include user info for comments
+                }
+            },
+            {
+                $sort: { createdAt: -1 } // Sort posts by creation date in descending order
+            },
+            {
+                $skip: skip // Skip the number of items based on the current page
+            },
+            {
+                $limit: limit // Limit the number of items per page
+            }
+        ]).toArray();
+        const filteredPosts = posts.filter(post => post.userInfo.email === email);
 
-        const query = { uid: user._id.toString() };
-       // const query = { uid: '6598d037b67bd57e6b290949' 
-        const posts = await postsCollection.find(query).toArray();
-        res.send(posts);
+        res.send(filteredPosts);
+        // const fetchPostByEmail = run a map which post user is == email 
+        // res.send(posts);
 
     } catch (error) {
         res.status(500).send({ message: 'An error occurred', error: error.message });
@@ -202,157 +332,6 @@ router.get('/:email', async (req, res) => {
 
 
 
-// router.get('/', async (req, res) => {
-//     try {
-//         const posts = await postsCollection.aggregate([
-//             {
-//                 $addFields: {
-//                     uidObjectId: { $toObjectId: "$uid" } // Convert `uid` to ObjectId
-//                 }
-//             },
-//             {
-//                 $lookup: {
-//                     from: 'users', // Name of the users collection
-//                     localField: 'uidObjectId', // Field from the posts collection (as ObjectId)
-//                     foreignField: '_id', // Field from the users collection (as ObjectId)
-//                     as: 'userInfo' // The name of the field to add the user info
-//                 }
-//             },
-//             {
-//                 $unwind: {
-//                     path: '$userInfo',
-//                     preserveNullAndEmptyArrays: true // Keep posts even if no matching user is found
-//                 }
-//             },
-//             {
-//                 $project: {
-//                     description: 1,
-//                     imgUrls: 1,
-//                     uid: 1,
-//                     createdAt: 1,
-//                     likes:1,
-//                     'userInfo.first_name': 1,
-//                     'userInfo.last_name': 1,
-//                     'userInfo.email': 1,
-//                     'userInfo.ProfileImgURL':1
-//                 }
-//             }
-//         ]).toArray();
-
-//         res.send(posts);
-
-//     } catch (error) {
-//         res.status(500).send({ message: 'An error occurred', error: error.message });
-//     }
-// });
-
-
-// router.get('/', async (req, res) => {
-//     try {
-//         // Extract pagination parameters from the query string
-//         const page = parseInt(req.query.page) || 1; // Default to page 1
-//         const limit = parseInt(req.query.limit) || 5; // Default to 5 items per page
-//         const skip = (page - 1) * limit; // Calculate the number of items to skip
-
-//         const posts = await postsCollection.aggregate([
-//             {
-//                 $addFields: {
-//                     uidObjectId: { $toObjectId: "$uid" } // Convert `uid` to ObjectId
-//                 }
-//             },
-//             {
-//                 $lookup: {
-//                     from: 'users', // Join with the `users` collection
-//                     localField: 'uidObjectId', // Field from the posts collection (ObjectId)
-//                     foreignField: '_id', // Field from the users collection (ObjectId)
-//                     as: 'userInfo' // Resulting field in the posts collection
-//                 }
-//             },
-//             {
-//                 $unwind: {
-//                     path: '$userInfo',
-//                     preserveNullAndEmptyArrays: true // Include posts even if no matching user is found
-//                 }
-//             },
-//             {
-//                 $lookup: {
-//                     from: 'comments', // Join with the `comments` collection
-//                     let: { postId: '$_id' }, // Define variable for the post's _id
-//                     pipeline: [
-//                         {
-//                             $addFields: {
-//                                 post_idObjectId: { $toObjectId: "$post_id" }, // Convert post_id to ObjectId
-//                                 uidObjectId: { $toObjectId: "$uid" } // Convert uid to ObjectId
-//                             }
-//                         },
-//                         {
-//                             $match: {
-//                                 $expr: {
-//                                     $eq: ['$post_idObjectId', { $toObjectId: '$$postId' }] // Match post_id with post's _id
-//                                 }
-//                             }
-//                         },
-//                         {
-//                             $lookup: {
-//                                 from: 'users', // Join with the `users` collection for comments
-//                                 localField: 'uidObjectId', // Field from the comments collection
-//                                 foreignField: '_id', // Field from the users collection
-//                                 as: 'commentUserInfo' // Resulting field in the comments array
-//                             }
-//                         },
-//                         {
-//                             $unwind: {
-//                                 path: '$commentUserInfo',
-//                                 preserveNullAndEmptyArrays: true // Include comments even if no matching user is found
-//                             }
-//                         }
-//                     ],
-//                     as: 'comments' // Resulting field in the posts collection
-//                 }
-//             },
-//             {
-//                 $project: {
-//                     description: 1,
-//                     imgUrls: 1,
-//                     uid: 1,
-//                     createdAt: 1,
-//                     likes: 1,
-//                     'userInfo.first_name': 1,
-//                     'userInfo.last_name': 1,
-//                     'userInfo.email': 1,
-//                     'userInfo.ProfileImgURL': 1,
-//                     comments: {
-//                         _id: 1,
-//                         uid:1,
-//                         text: 1,
-//                         post_id: 1,
-//                         parent_comment_id: 1,
-//                         createdAt: 1,
-//                         likes:1,
-//                         'commentUserInfo.first_name': 1,
-//                         'commentUserInfo.last_name': 1,
-//                         'commentUserInfo.ProfileImgURL': 1,
-//                         'commentUserInfo.email': 1
-//                     } // Include user info for comments
-//                 }
-//             },
-//             {
-//                 $sort: { createdAt: -1 } // Sort by creation date in descending order
-//             },
-//             {
-//                 $skip: skip // Skip the number of items based on the current page
-//             },
-//             {
-//                 $limit: limit // Limit the number of items per page
-//             }
-//         ]).toArray();
-
-//         res.send(posts);
-
-//     } catch (error) {
-//         res.status(500).send({ message: 'An error occurred', error: error.message });
-//     }
-// });
 
 router.get('/', async (req, res) => {
     try {
