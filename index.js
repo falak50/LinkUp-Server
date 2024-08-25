@@ -21,15 +21,19 @@ async function saveMessage(senderId, receiverId, message) {
   console.log('save massage')
   try {
     const db = client.db('LinkUp');
-    const messagesCollection = db.collection('messages');
+    const messagesCollection = db.collection('chat');
     const chat_id = [senderId, receiverId].sort().join('_');
-    const result = await messagesCollection.insertOne({
+    const payload = {
+      chat_id,
       senderId:senderId,
       receiverId:receiverId,
       message,
       timestamp: new Date(),
-    });
+    }
+
+    const result = await messagesCollection.insertOne(payload);
     console.log('Message saved:', result.insertedId);
+    console.log('payload ',payload)
   } catch (err) {
     console.error('Error saving message:', err);
   }
