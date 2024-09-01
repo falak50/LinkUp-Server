@@ -5,7 +5,7 @@ const client = require('../db');
 const upload = require('../multerConfig');
 const userCollection = client.db("LinkUp").collection("users");
 const path = require('path')
-const fs = require('fs'); 
+const fs = require('fs');
 
 // router.post('/', async (req, res) => {
 //     const user = req.body;
@@ -40,6 +40,68 @@ router.get('/', async (req, res) => {
     const result = await userCollection.find().toArray();
     res.send(result);
 });
+
+
+
+router.get('/makeFriendList/:id', async (req, res) => {
+  const id = req.params.id;
+  try {
+    const query = { _id: new ObjectId(id) };
+    const user = await userCollection.findOne(query);
+
+    if (!user) {
+      return res.status(404).send("User not found");
+    }
+    console.log(user);
+
+    // Use optional chaining and default values to handle possible undefined fields
+    const friends = user.friends || [];
+    const sendRequests = user.send_request || [];
+    const getRequests = user.get_request || []; // Adjust field name if different
+
+    // Combine user's own ID, send_request, and friends into an exclusion list
+    const exclusionListID = [
+      new ObjectId(id),  // Exclude the user's own ID
+      ...sendRequests.map(requestId => new ObjectId(requestId)), // Exclude send_request IDs
+      ...friends.map(friendId => new ObjectId(friendId)) // Exclude friends IDs
+    ];
+    console.log('exclusionListID ', exclusionListID);
+
+    // Find all users whose IDs are not in the exclusion list
+    const makeFriendUsers = await userCollection.find({
+      _id: { $nin: exclusionListID }
+    }).toArray();
+
+    // Find all users who are friends with the current user
+    const friendUsers = await userCollection.find({
+      _id: { $in: friends.map(friendId => new ObjectId(friendId)) }
+    }).toArray();
+
+    // Find all users who have sent a friend request to the current user
+    const friendrequestUsers = await userCollection.find({
+      _id: { $in: getRequests.map(requestId => new ObjectId(requestId)) }
+    }).toArray();
+
+    // Find all users to whom the current user has sent a friend request
+    const sentfriendrequestUsers = await userCollection.find({
+      _id: { $in: sendRequests.map(requestId => new ObjectId(requestId)) }
+    }).toArray();
+
+    // Construct the response object
+    const obj = {
+      makeFriendUsers,
+      friendUsers,
+      friendrequestUsers,
+      sentfriendrequestUsers
+    };
+    res.send(obj);
+  } catch (error) {
+    res.status(500).send(error.message);
+  }
+});
+
+
+
 router.get('/:email', async (req, res) => {
     try {
         const query = { email: req.params.email };
