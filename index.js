@@ -64,13 +64,14 @@ const skillsRouter = require('./routes/skills');
 const postsRouter = require('./routes/posts');
 const commentsRouter = require('./routes/comments');
 const chatsRouter = require('./routes/chats');
-
+const jobsRouter = require('./routes/jobs');
 app.use('/users', usersRouter);
 app.use('/education', educationRouter);
 app.use('/skills', skillsRouter);
 app.use('/posts', postsRouter);
 app.use('/comments', commentsRouter);
 app.use('/chats',chatsRouter);
+app.use('/jobs',jobsRouter);
 
 
 app.get('/', (req, res) => {
