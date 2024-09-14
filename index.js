@@ -45,7 +45,7 @@ io.on("connection", (socket) => {
   socket.on("join_room", ({ userId }) => {
     const roomId = userId;
     socket.join(roomId);
-    console.log(`User ${userId} joined room ${roomId}`);
+   console.log(`User ${userId} joined room ${roomId}`);
   });
 
   socket.on("send_message", async ({ otherUserId, message,senderId }) => {

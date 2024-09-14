@@ -71,7 +71,7 @@ router.get('/:email', async (req, res) => {
 // Route to get all messages for a specific chat_id
 router.get('/messages/:chat_id', async (req, res) => {
     const chat_id = req.params.chat_id;
-    console.log('dasd chat_id',chat_id)
+    // console.log('dasd chat_id',chat_id)
     try {
         // Query messages by chat_id
         const messages = await messagesCollection.find({ chat_id: chat_id }).toArray();
