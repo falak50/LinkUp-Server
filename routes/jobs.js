@@ -62,6 +62,7 @@ router.get('/', async (req, res) => {
                     title: 1,
                     location: 1,
                     workType: 1,
+                    timing:1,
                     description: 1,
                     uid: 1,
                     createdAt: 1,
@@ -120,5 +121,42 @@ router.post('/', async (req, res) => {
         res.status(500).send({ message: "Error creating job", error });
     }
 });
+
+router.post('/delete/:id', async (req, res) => {
+    const jobId = req.params.id;
+    try {
+        const result = await jobsCollection.deleteOne({ _id: new ObjectId(jobId) });
+
+        if (result.deletedCount === 1) {
+            res.status(200).send({ message: "Job deleted successfully" });
+        } else {
+            res.status(404).send({ message: "Job not found" });
+        }
+    } catch (error) {
+        res.status(500).send({ message: "Error deleting job", error });
+    }
+});
+
+// Route to update an existing job post by id
+router.post('/edit/:id', async (req, res) => {
+    const jobId = req.params.id;
+    const updatedData = req.body; // The new data to update the job post
+
+    try {
+        const result = await jobsCollection.updateOne(
+            { _id: new ObjectId(jobId) },
+            { $set: updatedData }
+        );
+
+        if (result.matchedCount === 1) {
+            res.status(200).send({ message: "Job updated successfully" });
+        } else {
+            res.status(404).send({ message: "Job not found" });
+        }
+    } catch (error) {
+        res.status(500).send({ message: "Error updating job", error });
+    }
+});
+
 
 module.exports = router;
