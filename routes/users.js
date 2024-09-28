@@ -123,12 +123,14 @@ router.get('/:email', async (req, res) => {
 // });
 
 router.patch('/:id', async (req, res) => {
+    console.log('todo')
     const id = req.params.id;
     const { first_name, last_name, additional_name, headline, education, country, city } = req.body;
     const filter = { _id: new ObjectId(id) };
+    const isPrivate = false
     const updateDoc = {
         $set: {
-            first_name, last_name, additional_name, headline, education, country, city,
+            first_name, last_name, additional_name, headline, education, country, city,isPrivate
         },
     };
     const result = await userCollection.updateOne(filter, updateDoc);
