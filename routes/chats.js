@@ -13,7 +13,8 @@ router.get('/', async (req, res) => {
                 email: 1,
                 first_name: 1,
                 last_name: 1,
-                friends: 1 
+                friends: 1,
+                
             }
         }).toArray();
         res.json(result);

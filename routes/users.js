@@ -43,7 +43,7 @@ router.get('/', async (req, res) => {
 
 
 
-router.get('/makeFriendList/:id', async (req, res) => {
+router.get('/networks/:id', async (req, res) => {
   const id = req.params.id;
   try {
     const query = { _id: new ObjectId(id) };
@@ -99,6 +99,37 @@ router.get('/makeFriendList/:id', async (req, res) => {
     res.status(500).send(error.message);
   }
 });
+router.get('/connections/:id', async (req, res) => {
+    const id = req.params.id;
+    try {
+      const query = { _id: new ObjectId(id) };
+      const user = await userCollection.findOne(query);
+  
+      if (!user) {
+        return res.status(404).send("User not found");
+      }
+  
+      const friends = user.friends || []; // Get friends list (array of IDs)
+      
+      // Find friends with only the required fields
+      const friendUsers = await userCollection.find({
+        _id: { $in: friends.map(friendId => new ObjectId(friendId)) }
+      }, {
+        projection: {
+          first_name: 1,
+          last_name: 1,
+          ProfileImgURL: 1,
+          education: 1,
+          email: 1,
+          headline: 1
+        }
+      }).toArray();
+  
+      res.send(friendUsers);
+    } catch (error) {
+      res.status(500).send(error.message);
+    }
+  });
 
 
 
