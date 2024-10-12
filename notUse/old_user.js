@@ -178,6 +178,34 @@ router.post('/profileimg', upload.array('file'), async(req, res) => {
 
     return res.json(result);
   });
+  router.post('/coverImg', upload.array('file'), async(req, res) => {
+    console.log('come in profileimg');
+    const files = req.files || [];
+  
+    // Process files if present
+    const imgUrls = files.map(file => {
+      console.log("pic link = ", file.filename);
+      return file.filename;
+    });
+    const CoverImgURL = imgUrls[0];
+    req.body.imgUrls = imgUrls;
+  
+    const id = req.body.uid;
+    console.log("uid", id);
+    const filter = { _id: new ObjectId(id) };
+  
+    const updateDoc = {
+      $set: {
+        CoverImgURL: CoverImgURL,
+      },
+    };
+  
+    const result = await userCollection.updateOne(filter, updateDoc)
+
+
+    return res.json(result);
+  });
+
 
   // router.delete('/profilePicdelete/:uid', async (req, res) => {
   //   console.log('delete route calll')

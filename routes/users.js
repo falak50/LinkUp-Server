@@ -99,38 +99,191 @@ router.get('/networks/:id', async (req, res) => {
     res.status(500).send(error.message);
   }
 });
-router.get('/connections/:id', async (req, res) => {
-    const id = req.params.id;
-    try {
-      const query = { _id: new ObjectId(id) };
-      const user = await userCollection.findOne(query);
-  
-      if (!user) {
-        return res.status(404).send("User not found");
-      }
-  
-      const friends = user.friends || []; // Get friends list (array of IDs)
-      
-      // Find friends with only the required fields
-      const friendUsers = await userCollection.find({
-        _id: { $in: friends.map(friendId => new ObjectId(friendId)) }
-      }, {
-        projection: {
-          first_name: 1,
-          last_name: 1,
-          ProfileImgURL: 1,
-          education: 1,
-          email: 1,
-          headline: 1
-        }
-      }).toArray();
-  
-      res.send(friendUsers);
-    } catch (error) {
-      res.status(500).send(error.message);
-    }
-  });
+router.get('/networks/makeFriendUsers/:id', async (req, res) => {
+  const id = req.params.id;
+  try {
+    const query = { _id: new ObjectId(id) };
+    const user = await userCollection.findOne(query);
 
+    if (!user) {
+      return res.status(404).send("User not found");
+    }
+    console.log(user);
+
+    // Use optional chaining and default values to handle possible undefined fields
+    const friends = user.friends || [];
+    const sendRequests = user.send_request || [];
+    const getRequests = user.get_request || []; // Adjust field name if 
+    const exclusionListID = [
+      new ObjectId(id), 
+      ...sendRequests.map(requestId => new ObjectId(requestId)), 
+      ...friends.map(friendId => new ObjectId(friendId)),
+      ...getRequests.map(getRequestID => new ObjectId(getRequestID)) 
+    ];
+    // console.log('exclusionListID ', exclusionListID);
+    const makeFriendUsers = await userCollection.find({
+      _id: { $nin: exclusionListID }
+    }).toArray();
+
+  
+    const obj = {
+      makeFriendUsers,
+    };
+    res.send(obj);
+  } catch (error) {
+    res.status(500).send(error.message);
+  }
+});
+router.get('/networks/friendrequestUsers/:id', async (req, res) => {
+  const id = req.params.id;
+  try {
+    const query = { _id: new ObjectId(id) };
+    const user = await userCollection.findOne(query);
+
+    if (!user) {
+      return res.status(404).send("User not found");
+    }
+    const getRequests = user.get_request || []; // Adjust field name if different
+
+    const friendrequestUsers = await userCollection.find({
+      _id: { $in: getRequests.map(requestId => new ObjectId(requestId)) }
+    }).toArray();
+
+    const obj = {
+      friendrequestUsers
+    };
+    res.send(obj);
+  } catch (error) {
+    res.status(500).send(error.message);
+  }
+});
+router.get('/networks/sentfriendrequestUsers/:id', async (req, res) => {
+  const id = req.params.id;
+  try {
+    const query = { _id: new ObjectId(id) };
+    const user = await userCollection.findOne(query);
+
+    if (!user) {
+      return res.status(404).send("User not found");
+    }
+
+    const sendRequests = user.send_request || [];
+
+    const sentfriendrequestUsers = await userCollection.find({
+      _id: { $in: sendRequests.map(requestId => new ObjectId(requestId)) }
+    }).toArray();
+
+    const obj = {
+      sentfriendrequestUsers
+    };
+    res.send(obj);
+  } catch (error) {
+    res.status(500).send(error.message);
+  }
+});
+// router.get('/connections/:id', async (req, res) => {
+//     const id = req.params.id;
+//     try {
+//       const query = { _id: new ObjectId(id) };
+//       const user = await userCollection.findOne(query);
+  
+//       if (!user) {
+//         return res.status(404).send("User not found");
+//       }
+  
+//       const friends = user.friends || []; // Get friends list (array of IDs)
+      
+//       // Find friends with only the required fields
+//       const friendUsers = await userCollection.find({
+//         _id: { $in: friends.map(friendId => new ObjectId(friendId)) }
+//       }, {
+//         projection: {
+//           first_name: 1,
+//           last_name: 1,
+//           ProfileImgURL: 1,
+//           education: 1,
+//           email: 1,
+//           headline: 1
+//         }
+//       }).toArray();
+  
+//       res.send(friendUsers);
+//     } catch (error) {
+//       res.status(500).send(error.message);
+//     }
+//   });
+router.get('/connections/:id', async (req, res) => {
+  const id = req.params.id;
+  const { search, sort, page = 1, limit = 2 } = req.query; // Extract search, sort, page, and limit parameters from query
+
+  try {
+    const query = { _id: new ObjectId(id) };
+    const user = await userCollection.findOne(query);
+
+    if (!user) {
+      return res.status(404).send("User not found");
+    }
+
+    const friends = user.friends || []; // Get friends list (array of IDs)
+
+    // Create a filter for searching friends by first_name or last_name (case-insensitive)
+    let searchQuery = {};
+    if (search) {
+      const regex = new RegExp(search, 'i'); // Create regex once
+      searchQuery = {
+        $or: [
+          { first_name: regex }, // Case-insensitive search
+          { last_name: regex }
+        ]
+      };
+    }
+
+    // Calculate pagination
+    const totalFriends = await userCollection.countDocuments({
+      _id: { $in: friends.map(friendId => new ObjectId(friendId)) },
+      ...searchQuery // Include the search query here
+    });
+
+    const skip = (page - 1) * limit; // Calculate the number of documents to skip
+    const friendUsers = await userCollection.find({
+      _id: { $in: friends.map(friendId => new ObjectId(friendId)) },
+      ...searchQuery // Include the search query here
+    }, {
+      projection: {
+        first_name: 1,
+        last_name: 1,
+        ProfileImgURL: 1,
+        education: 1,
+        email: 1,
+        headline: 1
+      }
+    })
+    .skip(skip) // Skip the documents based on pagination
+    .limit(parseInt(limit)) // Limit the number of documents to return
+    .toArray();
+
+    // Sort friendUsers based on the sort parameter
+    if (sort) {
+      if (sort === 'first_name') {
+        friendUsers.sort((a, b) => (a.first_name || '').localeCompare(b.first_name || ''));
+      } else if (sort === 'last_name') {
+        friendUsers.sort((a, b) => (a.last_name || '').localeCompare(b.last_name || ''));
+      } else if (sort === 'recent') {
+      }
+    }
+
+    // Return pagination info along with the friend users
+    res.send({
+      result: totalFriends,
+      total: friends.length,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      friends: friendUsers
+    });
+  } catch (error) {
+    res.status(500).send(error.message);
+  }
+});
 
 
 router.get('/:email', async (req, res) => {
@@ -150,7 +303,7 @@ router.get('/:email', async (req, res) => {
 // router.get('/:email', async (req, res) => {
 //     const query = { email: req.params.email };
 //     const user = await userCollection.findOne(query);
-//     res.send(user);
+//     res.send(user);n
 // });
 
 router.patch('/:id', async (req, res) => {
@@ -198,17 +351,31 @@ router.post('/profileimg', upload.array('file'), async(req, res) => {
     };
   
     const result = await userCollection.updateOne(filter, updateDoc)
-    //  => {
-    //   if (err) {
-    //     console.error('Error updating profile image:', err);
-    //     return res.status(500).json({ message: 'Internal server error' });
-    //   }
+    return res.json(result);
+  });
+  router.post('/coverImg', upload.array('file'), async(req, res) => {
+    console.log('come in profileimg');
+    const files = req.files || [];
   
-    //   console.log('Update result:', result);
+    // Process files if present
+    const imgUrls = files.map(file => {
+      console.log("pic link = ", file.filename);
+      return file.filename;
+    });
+    const CoverImgURL = imgUrls[0];
+    req.body.imgUrls = imgUrls;
   
-     
-    // });
-
+    const id = req.body.uid;
+    console.log("uid", id);
+    const filter = { _id: new ObjectId(id) };
+  
+    const updateDoc = {
+      $set: {
+        CoverImgURL: CoverImgURL,
+      },
+    };
+  
+    const result = await userCollection.updateOne(filter, updateDoc)
     return res.json(result);
   });
 
