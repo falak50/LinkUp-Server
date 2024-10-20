@@ -101,6 +101,8 @@ router.get('/networks/:id', async (req, res) => {
 });
 router.get('/networks/makeFriendUsers/:id', async (req, res) => {
   const id = req.params.id;
+  const { search, page = 1, limit = 12 } = req.query; // Extract search, page, and limit from query
+
   try {
     const query = { _id: new ObjectId(id) };
     const user = await userCollection.findOne(query);
@@ -108,32 +110,62 @@ router.get('/networks/makeFriendUsers/:id', async (req, res) => {
     if (!user) {
       return res.status(404).send("User not found");
     }
-    console.log(user);
 
     // Use optional chaining and default values to handle possible undefined fields
     const friends = user.friends || [];
     const sendRequests = user.send_request || [];
-    const getRequests = user.get_request || []; // Adjust field name if 
+    const getRequests = user.get_request || [];
+
+    // Exclusion list of user IDs
     const exclusionListID = [
       new ObjectId(id), 
       ...sendRequests.map(requestId => new ObjectId(requestId)), 
       ...friends.map(friendId => new ObjectId(friendId)),
-      ...getRequests.map(getRequestID => new ObjectId(getRequestID)) 
+      ...getRequests.map(getRequestID => new ObjectId(getRequestID))
     ];
-    // console.log('exclusionListID ', exclusionListID);
-    const makeFriendUsers = await userCollection.find({
-      _id: { $nin: exclusionListID }
-    }).toArray();
 
-  
-    const obj = {
+    // Build the search query
+    let searchQuery = {};
+    if (search) {
+      const regex = new RegExp(search, 'i'); // Case-insensitive search
+      searchQuery = {
+        $or: [
+          { first_name: regex }, // Match first name
+          { last_name: regex } // Match last name
+        ]
+      };
+    }
+
+    // Calculate total number of users that match the criteria (excluding friends, sent requests, and received requests)
+    const totalUsers = await userCollection.countDocuments({
+      _id: { $nin: exclusionListID },
+      ...searchQuery // Include the search query
+    });
+
+    // Pagination logic
+    const skip = (page - 1) * limit;
+
+    // Fetch users who are not friends, not in send/receive requests, and match the search query (if any)
+    const makeFriendUsers = await userCollection.find({
+      _id: { $nin: exclusionListID },
+      ...searchQuery
+    })
+    .skip(skip)
+    .limit(parseInt(limit))
+    .toArray();
+
+    // Send the response with pagination info
+    res.send({
       makeFriendUsers,
-    };
-    res.send(obj);
+      total: totalUsers, // Total matching users
+      page: parseInt(page), // Current page
+      limit: parseInt(limit) // Number of users per page
+    });
   } catch (error) {
     res.status(500).send(error.message);
   }
 });
+
 router.get('/networks/friendrequestUsers/:id', async (req, res) => {
   const id = req.params.id;
   try {
@@ -311,10 +343,9 @@ router.patch('/:id', async (req, res) => {
     const id = req.params.id;
     const { first_name, last_name, additional_name, headline, education, country, city } = req.body;
     const filter = { _id: new ObjectId(id) };
-    const isPrivate = false
     const updateDoc = {
         $set: {
-            first_name, last_name, additional_name, headline, education, country, city,isPrivate
+            first_name, last_name, additional_name, headline, education, country, city
         },
     };
     const result = await userCollection.updateOne(filter, updateDoc);
@@ -322,12 +353,7 @@ router.patch('/:id', async (req, res) => {
 });
 
 
-// router.post('/profileimg',  async(req, res) => {
-//     console.log('come in profileimg asdasdd');
-   
-//     return res.json('hello');
-//   });
-
+//connections
 router.post('/profileimg', upload.array('file'), async(req, res) => {
     console.log('come in profileimg');
     const files = req.files || [];
@@ -377,6 +403,34 @@ router.post('/profileimg', upload.array('file'), async(req, res) => {
   
     const result = await userCollection.updateOne(filter, updateDoc)
     return res.json(result);
+  });
+
+
+  router.post('/private', async (req, res) => {
+    try {
+      const { uid, isPrivate } = req.body;
+  
+      if (!uid) {
+        return res.status(400).send({ message: 'User ID is required' });
+      }
+  
+      // Find the user by ID and update the `isPrivate` field
+      const filter = { _id: new ObjectId(uid) };
+      const updateDoc = {
+        $set: { isPrivate }
+      };
+  
+      const result = await userCollection.updateOne(filter, updateDoc);
+  
+      if (result.modifiedCount === 0) {
+        return res.status(404).send({ message: 'User not found or privacy setting already set to the provided value' });
+      }
+  
+      res.status(200).send({ message: 'User privacy updated successfully', isPrivate });
+    } catch (error) {
+      console.error(error);
+      res.status(500).send({ message: 'An error occurred while updating privacy settings', error: error.message });
+    }
   });
 
   // router.delete('/profilePicdelete/:uid', async (req, res) => {
