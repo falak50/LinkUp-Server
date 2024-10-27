@@ -246,7 +246,7 @@ router.get('/networks/sentfriendrequestUsers/:id', async (req, res) => {
 //   });
 router.get('/connections/:id', async (req, res) => {
   const id = req.params.id;
-  const { search, sort, page = 1, limit = 2 } = req.query; // Extract search, sort, page, and limit parameters from query
+  const { search, sort, page = 1, limit = 5 } = req.query; // Extract search, sort, page, and limit parameters from query
 
   try {
     const query = { _id: new ObjectId(id) };
