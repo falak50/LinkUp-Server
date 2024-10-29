@@ -331,6 +331,26 @@ router.get('/:email', async (req, res) => {
         res.status(500).send({ message: 'An error occurred', error: error.message });
     }
 });
+router.get('/delete/:email', async (req, res) => {
+  try {
+    
+      const { email } = req.params;
+      console.log('email ',email)
+      if (!email) {
+          return res.status(400).json({ message: 'Email parameter is required' });
+      }
+    console.log('email ',email)
+      const result = await userCollection.deleteOne({ email });
+
+      if (result.deletedCount === 0) {
+          return res.status(404).json({ message: 'User not found' });
+      }
+
+      res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+      res.status(500).json({ message: 'An error occurred', error: error.message });
+  }
+});
 
 // router.get('/:email', async (req, res) => {
 //     const query = { email: req.params.email };
