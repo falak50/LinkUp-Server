@@ -169,9 +169,7 @@ router.post('/edit/:comment_id', async (req, res) => {
 
 // Get Comments by Post ID
 router.get('/:post_id', async (req, res) => {
-    // res.status(200).json('dasd');
     try {
-        
         const post_id = req.params.post_id;
         console.log('post_id:', post_id);
 
@@ -180,10 +178,47 @@ router.get('/:post_id', async (req, res) => {
             return res.status(400).json({ message: 'Invalid post ID' });
         }
 
-   
-       const comments = await commentsCollection.find({ post_id: post_id }).toArray();
-    //    console.log()
+        // Aggregation pipeline to fetch comments with user info
+        const comments = await commentsCollection.aggregate([
+            {
+                $match: { post_id: post_id }
+            },
+            {
+                $addFields: {
+                    uidObjectId: { $toObjectId: "$uid" } // Convert `uid` to ObjectId for the lookup
+                }
+            },
+            {
+                $lookup: {
+                    from: 'users', // Join with the `users` collection
+                    localField: 'uidObjectId', // Field from comments (converted to ObjectId)
+                    foreignField: '_id', // Field from users collection
+                    as: 'commentUserInfo' // Resulting field in comments
+                }
+            },
+            {
+                $unwind: {
+                    path: '$commentUserInfo', // Unwind to make userInfo an object
+                    preserveNullAndEmptyArrays: true // Include comments even if no matching user is found
+                }
+            },
+            {
+                $project: {
+                    text: 1,
+                    post_id: 1,
+                    parent_comment_id: 1,
+                    uid: 1,
+                    createdAt: 1,
+                    'commentUserInfo.email': 1,
+                    'commentUserInfo.first_name': 1,
+                    'commentUserInfo.last_name': 1,
+                    'commentUserInfo.ProfileImgURL': 1 // Include additional user info fields
+                }
+            }
+        ]).toArray();
+
         res.status(200).json(comments);
+
     } catch (error) {
         console.error('Error fetching comments:', error);
         res.status(500).json({ message: 'Internal server error' });
