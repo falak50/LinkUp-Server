@@ -186,10 +186,20 @@ router.post('/deleteSellPost/:id', async (req, res) => {
 // GET route to retrieve products by category
 router.get('/category/:categoryName', async (req, res) => {
     const { categoryName } = req.params;
+    const { title, location } = req.query; // Get title and location from query params
 
     try {
-        // Fetch products from the database that match the category
-        const filteredProducts = await postsCollection.find({ category: categoryName }).toArray();
+        // Build the filter for products
+        const filter = { category: categoryName };
+        if (title) {
+            filter.title = { $regex: title, $options: 'i' }; // Case-insensitive search
+        }
+        if (location) {
+            filter.location = { $regex: location, $options: 'i' }; // Case-insensitive search
+        }
+
+        // Fetch products from the database that match the filter
+        const filteredProducts = await postsCollection.find(filter).toArray();
 
         // Check if any products were found
         if (filteredProducts.length === 0) {
@@ -203,6 +213,7 @@ router.get('/category/:categoryName', async (req, res) => {
         res.status(500).json({ message: "Error retrieving products", error: error.message });
     }
 });
+
 
 router.get('/product/:productId', async (req, res) => {
     const { productId } = req.params;
