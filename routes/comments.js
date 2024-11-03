@@ -3,7 +3,7 @@ const router = express.Router();
 const { ObjectId } = require('mongodb');
 const client = require('../db');
 const upload = require('../multerConfig');
-
+const postsCollection = client.db("LinkUp").collection("posts");
 
 const commentsCollection = client.db("LinkUp").collection("comments");
 const userCollection = client.db("LinkUp").collection("users");
@@ -90,27 +90,56 @@ router.get('/', async (req, res) => {
 //         res.status(500).json({ message: 'Internal server error' });
 //     }
 // });
+
 router.post('/', async (req, res) => {
     try {
         const data = req.body;
+
         // Validate the input
-        if (!data.text || !data.uid) {
+        if (!data.text || !data.uid) {  // No need to check for post_id if it's sometimes absent
             return res.status(400).json({ message: 'Invalid input data' });
         }
 
-        console.log('2')
         // Add current timestamp
         data.createdAt = new Date();
 
         // Save the comment to the database
         const result = await commentsCollection.insertOne(data);
-        console.log('Comment saved:', result.insertedId);
         const comment_id = result.insertedId;
+        
         // Fetch the user information associated with the comment's uid
         const userInfo = await userCollection.findOne(
             { _id: new ObjectId(data.uid) },
             { projection: { first_name: 1, last_name: 1, email: 1, ProfileImgURL: 1 } }
         );
+
+        // Check if post_id is provided and create a notification if the post is found
+        if (data?.post_id && data.type == 'post') {
+            const post = await postsCollection.findOne({ _id: new ObjectId(data.post_id) });
+
+            // Only create the notification if the post is found
+            if (post && post.uid && userInfo  && post?.uid!=data?.uid) {
+                // Build notification data
+                const notification = {
+                    action: 'comment',
+                    type: data.type,
+                    ownerId: post.uid,  // the post owner's ID
+                    senderId: data.uid,
+                    senderName: `${userInfo.first_name} ${userInfo.last_name}`,  
+                    postId: data.post_id,
+                    commentId: comment_id,
+                    createdAt: new Date(),
+                    isRead:0
+                };
+
+                // Save the notification, but don't let it disrupt the response if it fails
+                try {
+                    await client.db("LinkUp").collection("notifications").insertOne(notification);
+                } catch (notificationError) {
+                    console.error('Failed to save notification:', notificationError);
+                }
+            }
+        }
 
         // Build the response object with comment and user info
         const response = {
@@ -122,7 +151,6 @@ router.post('/', async (req, res) => {
             likes: [],
             commentUserInfo: userInfo
         };
-        console.log('5')
 
         // Send the response
         res.status(201).json({ message: 'Comment added successfully', comment: response });
@@ -132,6 +160,51 @@ router.post('/', async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 });
+
+
+// pre work 
+// router.post('/', async (req, res) => {
+//     try {
+//         const data = req.body;
+//         // Validate the input
+//         if (!data.text || !data.uid) {
+//             return res.status(400).json({ message: 'Invalid input data' });
+//         }
+
+//         console.log('2')
+//         // Add current timestamp
+//         data.createdAt = new Date();
+
+//         // Save the comment to the database
+//         const result = await commentsCollection.insertOne(data);
+//         console.log('Comment saved:', result.insertedId);
+//         const comment_id = result.insertedId;
+//         // Fetch the user information associated with the comment's uid
+//         const userInfo = await userCollection.findOne(
+//             { _id: new ObjectId(data.uid) },
+//             { projection: { first_name: 1, last_name: 1, email: 1, ProfileImgURL: 1 } }
+//         );
+
+//         // Build the response object with comment and user info
+//         const response = {
+//             _id: comment_id,
+//             text: data.text,
+//             post_id: data.post_id,
+//             parent_comment_id: data.parent_comment_id,
+//             createdAt: data.createdAt,
+//             likes: [],
+//             commentUserInfo: userInfo
+//         };
+//         console.log('5')
+
+//         // Send the response
+//         res.status(201).json({ message: 'Comment added successfully', comment: response });
+
+//     } catch (error) {
+//         console.error('Error saving comment:', error);
+//         res.status(500).json({ message: 'Internal server error' });
+//     }
+// });
 
 router.post('/edit/:comment_id', async (req, res) => {
     try {
@@ -293,6 +366,8 @@ router.get('/reply/:parent_comment_id', async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 });
+
+
 
 
 module.exports = router;

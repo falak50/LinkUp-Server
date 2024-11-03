@@ -320,7 +320,6 @@ router.post('/like', async (req, res) => {
             // If likes array does not exist, initialize it and push the liker_id
             update.$set = { likes: [liker_id] };
         } else {
-            // If likes array exists
             if (isAdd) {
                 // Add liker_id to the likes array if isAdd is true and it's not already present
                 if (!post.likes.includes(liker_id)) {
@@ -336,6 +335,30 @@ router.post('/like', async (req, res) => {
         const updatedPost = await postsCollection.findOne({ _id: new ObjectId(post_id) });
 
         if (result.modifiedCount > 0) {
+            // Find the liker details
+            const liker = await userCollection.findOne({ _id: new ObjectId(liker_id) });
+
+            // Only create a notification if the like is being added
+            if (isAdd && liker && post.uid!=liker_id ) {
+                const notification = {
+                    action: 'like',
+                    type: 'post',
+                    ownerId: post.uid,  // post owner
+                    senderId: liker_id,
+                    senderName: `${liker.first_name} ${liker.last_name}`, 
+                    postId: post_id,
+                    createdAt: new Date(),
+                    isRead:0
+                };
+
+                // Save the notification, but don't disrupt the like operation if it fails
+                try {
+                    await client.db("LinkUp").collection("notifications").insertOne(notification);
+                } catch (notificationError) {
+                    console.error('Failed to save notification:', notificationError);
+                }
+            }
+
             return res.status(200).json({ likeCount: updatedPost.likes.length });
         } else {
             return res.status(500).json({ message: 'Failed to update like status' });
@@ -345,6 +368,53 @@ router.post('/like', async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 });
+
+// pre work
+// router.post('/like', async (req, res) => {
+//     try {
+//         const { post_id, liker_id, isAdd } = req.body;
+
+//         if (!ObjectId.isValid(post_id) || !ObjectId.isValid(liker_id)) {
+//             return res.status(400).json({ message: 'Invalid post ID or liker ID' });
+//         }
+
+//         const post = await postsCollection.findOne({ _id: new ObjectId(post_id) });
+
+//         if (!post) {
+//             return res.status(404).json({ message: 'Post not found' });
+//         }
+
+//         const update = {};
+        
+//         if (!post.likes) {
+//             // If likes array does not exist, initialize it and push the liker_id
+//             update.$set = { likes: [liker_id] };
+//         } else {
+//             // If likes array exists
+//             if (isAdd) {
+//                 // Add liker_id to the likes array if isAdd is true and it's not already present
+//                 if (!post.likes.includes(liker_id)) {
+//                     update.$push = { likes: liker_id };
+//                 }
+//             } else {
+//                 // Remove liker_id from the likes array if isAdd is false
+//                 update.$pull = { likes: liker_id };
+//             }
+//         }
+
+//         const result = await postsCollection.updateOne({ _id: new ObjectId(post_id) }, update);
+//         const updatedPost = await postsCollection.findOne({ _id: new ObjectId(post_id) });
+
+//         if (result.modifiedCount > 0) {
+//             return res.status(200).json({ likeCount: updatedPost.likes.length });
+//         } else {
+//             return res.status(500).json({ message: 'Failed to update like status' });
+//         }
+//     } catch (error) {
+//         console.error('Error updating like status:', error);
+//         res.status(500).json({ message: 'Internal server error' });
+//     }
+// });
 
 
 

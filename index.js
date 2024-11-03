@@ -66,6 +66,7 @@ const productRouter = require('./routes/products')
 const commentsRouter = require('./routes/comments');
 const chatsRouter = require('./routes/chats');
 const jobsRouter = require('./routes/jobs');
+const check = require('./routes/check');
 
 app.use('/users', usersRouter);
 app.use('/education', educationRouter);
@@ -75,6 +76,7 @@ app.use('/comments', commentsRouter);
 app.use('/chats',chatsRouter);
 app.use('/jobs',jobsRouter);
 app.use('/products', productRouter);
+app.use('/check', check);
 
 
 app.get('/', (req, res) => {
