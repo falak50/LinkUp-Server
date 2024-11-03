@@ -47,7 +47,9 @@ router.post('/addSellPost', upload.array('images'), async (req, res) => {
             priceAmount: Number(priceAmount) || 0, // Ensure it's a number
             price: price !== "undefined" ? price : "Not Specified",
             images: imagePaths.length ? imagePaths : [] // Use processed image paths
+
         };
+        product.createdAt = new Date();
 
         // Save the product to the database
         const result = await postsCollection.insertOne(product); // Insert the product
@@ -132,6 +134,51 @@ router.put('/updateSellPost/:id', upload.array('images'), async (req, res) => {
     } catch (error) {
         console.error("Error updating product", error);
         res.status(500).json({ message: "Error updating product", error: error.message });
+    }
+});
+
+// Route to delete a product
+router.post('/deleteSellPost/:id', async (req, res) => {
+    try {
+        const productId = req.params.id;
+
+        // Validate product ID
+        if (!ObjectId.isValid(productId)) {
+            return res.status(400).json({ message: 'Invalid product ID' });
+        }
+
+        // Fetch the existing product to get image URLs
+        const existingProduct = await postsCollection.findOne({ _id: new ObjectId(productId) });
+
+        if (!existingProduct) {
+            return res.status(404).json({ message: 'Product not found' });
+        }
+
+        // Delete associated images if they exist
+        if (existingProduct.images && existingProduct.images.length > 0) {
+            await Promise.all(existingProduct.images.map(async (image) => {
+                const imagePath = path.join(__dirname, 'uploads', image); // Adjust path as needed
+                try {
+                    await fs.access(imagePath); // Check if file exists
+                    await fs.unlink(imagePath); // Delete the file
+                    console.log(`Deleted image: ${imagePath}`);
+                } catch (err) {
+                    console.error(`File not found or cannot be accessed: ${imagePath}`, err);
+                }
+            }));
+        }
+
+        // Delete the product document
+        const result = await postsCollection.deleteOne({ _id: new ObjectId(productId) });
+
+        if (result.deletedCount === 1) {
+            res.status(200).json({ message: 'Product deleted successfully' });
+        } else {
+            res.status(500).json({ message: 'Failed to delete product' });
+        }
+    } catch (error) {
+        console.error('Error deleting product', error);
+        res.status(500).json({ message: 'Error deleting product', error: error.message });
     }
 });
 
