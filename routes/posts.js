@@ -17,7 +17,7 @@ router.get('/publicPost', async (req, res) => {
         const page = parseInt(req.query.page) || 1; // Default to page 1
         const limit = parseInt(req.query.limit) || 20; // Default to 5 items per page
         const skip = (page - 1) * limit; // Calculate the number of items to skip
-   console.log('fasdfsadasfasfdasf')
+        //    console.log('fasdfsadasfasfdasf')
         const posts = await postsCollection.aggregate([
             {
                 $match: {
