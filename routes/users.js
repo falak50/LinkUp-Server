@@ -531,7 +531,48 @@ router.delete('/profilePicdelete/:uid', async (req, res) => {
       res.status(500).json({ message: 'Internal server error' });
   }
 });
+router.delete('/coverPicdelete/:uid', async (req, res) => {
+  try {
+      console.log('Cover image delete route called');
 
+      const uid = req.params.uid;
+      console.log('User ID:', uid);
+      const filter = { _id: new ObjectId(uid) };
+      const existingUser = await userCollection.findOne(filter);
+
+      if (!existingUser) {
+          return res.status(404).json({ message: 'User not found' });
+      }
+
+      if (!existingUser.CoverImgURL) {
+          return res.status(404).json({ message: 'Cover image not found' });
+      }
+
+      // Define the path to the cover image file
+      const coverImgPath = path.join(__dirname, '../uploads/images', existingUser.CoverImgURL);
+      console.log('Cover image path:', coverImgPath);
+
+      // Check if the file exists and delete it
+      if (fs.existsSync(coverImgPath)) {
+          fs.unlinkSync(coverImgPath); // Be cautious with this operation in a production environment
+      } else {
+          console.warn('Cover image file not found:', coverImgPath);
+      }
+
+      // Update the user document to remove the cover image URL
+      const updateDoc = {
+          $unset: {
+              CoverImgURL: 1,
+          },
+      };
+      const result = await userCollection.updateOne(filter, updateDoc);
+
+      res.status(200).json({ message: 'Cover image deleted successfully', result });
+  } catch (error) {
+      console.error('Error deleting cover image:', error);
+      res.status(500).json({ message: 'Internal server error' });
+  }
+});
 
 // friends array
 
